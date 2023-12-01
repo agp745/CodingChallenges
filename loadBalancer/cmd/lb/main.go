@@ -45,10 +45,8 @@ func modifyResponse() func(*http.Response) error {
 		fmt.Println(string(body))
 
 		res.Body = io.NopCloser(bytes.NewReader(body))
-		res.ContentLength = int64(len(body))
-
-		// Set the modified response headers
-		res.Header.Set("Content-Length", strconv.Itoa(len(body)))
+		// res.ContentLength = int64(len(body))
+		// res.Header.Set("Content-Length", strconv.Itoa(len(body)))
 
 		return nil
 	}
