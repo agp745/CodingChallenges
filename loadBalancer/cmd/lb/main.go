@@ -12,15 +12,19 @@ import (
 )
 
 type LoadBalancer struct {
-	port    int
-	servers map[string]int
+	port           int
+	servers        []string
+	healthyServers []string
+	badServers     []string
+	currServerIdx  int
 }
 
 func NewLoadBalancer(port int) *LoadBalancer {
-	servers := make(map[string]int)
+	servers := []string{":70", ":71", ":72"}
 	return &LoadBalancer{
-		port:    port,
-		servers: servers,
+		port:          port,
+		servers:       servers,
+		currServerIdx: -1,
 	}
 }
 
@@ -52,10 +56,20 @@ func modifyResponse() func(*http.Response) error {
 	}
 }
 
-func handleProxy(w http.ResponseWriter, r *http.Request) {
+func (lb *LoadBalancer) balanceServers() string {
+	lb.currServerIdx += 1
+
+	if lb.currServerIdx == len(lb.healthyServers) {
+		lb.currServerIdx = 0
+	}
+
+	return "http://localhost" + lb.healthyServers[lb.currServerIdx]
+}
+
+func (lb *LoadBalancer) handleProxy(w http.ResponseWriter, r *http.Request) {
 	readClientRequest(r)
 
-	targetUrl, err := url.Parse("http://localhost:70/server")
+	targetUrl, err := url.Parse(lb.balanceServers())
 	if err != nil {
 		http.Error(w, "Bad Gateway", http.StatusInternalServerError)
 		return
@@ -69,13 +83,13 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 func (lb *LoadBalancer) Listen() {
 	fmt.Printf("load balancer listening on http://localhost:%v\n\n", lb.port)
 
-	http.HandleFunc("/", handleProxy)
+	http.HandleFunc("/", lb.handleProxy)
 
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(lb.port), nil))
 }
 
 func main() {
 	lb := NewLoadBalancer(80)
-	lb.servers["server1"] = 70
+	go lb.HealthCheck()
 	lb.Listen()
 }
