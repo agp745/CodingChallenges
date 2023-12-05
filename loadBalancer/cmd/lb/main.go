@@ -59,7 +59,7 @@ func modifyResponse() func(*http.Response) error {
 func (lb *LoadBalancer) balanceServers() string {
 	lb.currServerIdx += 1
 
-	if lb.currServerIdx == len(lb.healthyServers) {
+	if lb.currServerIdx >= len(lb.healthyServers) {
 		lb.currServerIdx = 0
 	}
 
@@ -69,7 +69,16 @@ func (lb *LoadBalancer) balanceServers() string {
 func (lb *LoadBalancer) handleProxy(w http.ResponseWriter, r *http.Request) {
 	readClientRequest(r)
 
-	targetUrl, err := url.Parse(lb.balanceServers())
+	var URL string
+
+	if len(lb.healthyServers) == 0 {
+		URL = ":80"
+	} else {
+		URL = lb.balanceServers()
+	}
+
+	targetUrl, err := url.Parse(URL)
+	// targetUrl, err := url.Parse(lb.balanceServers())
 	if err != nil {
 		http.Error(w, "Bad Gateway", http.StatusInternalServerError)
 		return
@@ -90,6 +99,11 @@ func (lb *LoadBalancer) Listen() {
 
 func main() {
 	lb := NewLoadBalancer(80)
-	go lb.HealthCheck()
+
+	fmt.Println("Initial Health Check ------------")
+	lb.HealthCheck()
+
+	go lb.TimedCheck()
+
 	lb.Listen()
 }
