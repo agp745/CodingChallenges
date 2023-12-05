@@ -51,7 +51,7 @@ func (lb *LoadBalancer) HealthCheck() {
 		}
 
 		if resp.StatusCode != 200 {
-			// lb.BadServer(port, resp.Status)
+			lb.BadServer(port)
 		}
 
 		lb.HealthyServer(port)

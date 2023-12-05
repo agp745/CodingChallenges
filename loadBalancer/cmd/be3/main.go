@@ -17,7 +17,7 @@ func main() {
 			"Replied with a hello message\n\n",
 			c.Context().RemoteAddr(), c.Method(), c.Protocol(), c.Hostname(), string(c.Context().UserAgent()), c.Accepts())
 
-		return c.SendString("Hello from server on port 72")
+		return c.SendString("Hello from server on port 72\n")
 	})
 
 	app.Listen(":72")
