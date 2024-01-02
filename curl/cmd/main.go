@@ -8,24 +8,35 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
+	"strings"
 )
 
 type GocurlClient struct {
-	httpClient  *http.Client
-	httpRequest *http.Request
-	verbose     bool
+	httpClient    *http.Client
+	httpRequest   *http.Request
+	requestMethod string
+	verbose       bool
 }
+
+const (
+	RED   = "\033[31m"
+	RESET = "\033[0m"
+	BOLD  = "\033[1m"
+)
 
 func initGocurlClient() *GocurlClient {
 	client := &http.Client{}
 	return &GocurlClient{
 		httpClient: client,
-		// verbose:    true,
 	}
 }
 
-func initFlags() *bool {
-	return flag.Bool("v", false, "prints the request and response headers to stdout")
+func initFlags() (*bool, *string) {
+	v := flag.Bool("v", false, "Return request and response headers to stdout")
+	X := flag.String("X", "GET", "Set the request method. Default: GET")
+
+	return v, X
 }
 
 func parseURL(rawURL string) *url.URL {
@@ -41,26 +52,33 @@ func parseURL(rawURL string) *url.URL {
 	return u
 }
 
+func checkMethod(m string) bool {
+	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
+	return slices.Contains(methods, m)
+}
+
 func main() {
 	gc := initGocurlClient()
-	vFlag := initFlags()
+	vFlag, XFlag := initFlags()
 	var rawUrl string
 
 	flag.Parse()
 
-	switch len(os.Args) {
-	case 2:
-		rawUrl = os.Args[1]
-	case 3:
-		rawUrl = os.Args[2]
-	default:
-		fmt.Println("Usage: ./bin/gocurl <URL>")
+	if len(os.Args) == 1 {
+		fmt.Println("Usage: ./bin/gocurl [flags] <URL>")
 		return
 	}
+	rawUrl = os.Args[len(os.Args)-1]
 
 	if *vFlag {
 		gc.verbose = true
 	}
+	method := strings.ToUpper(strings.TrimSpace(*XFlag))
+	if ok := checkMethod(method); !ok {
+		fmt.Printf("%sError:%s %s%s%s is NOT a valid method\r\n", RED, RESET, BOLD, method, RESET)
+		return
+	}
+	gc.requestMethod = method
 
 	u := parseURL(rawUrl)
 
@@ -78,6 +96,7 @@ func (gc *GocurlClient) createRequest(u *url.URL) {
 	req.Header.Set("Host", u.Hostname())
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Connection", "close")
+	req.Method = gc.requestMethod
 
 	gc.httpRequest = req
 
