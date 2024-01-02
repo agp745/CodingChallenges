@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +9,24 @@ import (
 	"net/url"
 	"os"
 )
+
+type GocurlClient struct {
+	httpClient  *http.Client
+	httpRequest *http.Request
+	verbose     bool
+}
+
+func initGocurlClient() *GocurlClient {
+	client := &http.Client{}
+	return &GocurlClient{
+		httpClient: client,
+		// verbose:    true,
+	}
+}
+
+func initFlags() *bool {
+	return flag.Bool("v", false, "prints the request and response headers to stdout")
+}
 
 func parseURL(rawURL string) *url.URL {
 	u, err := url.Parse(rawURL)
@@ -23,19 +42,34 @@ func parseURL(rawURL string) *url.URL {
 }
 
 func main() {
-	if len(os.Args) < 2 {
+	gc := initGocurlClient()
+	vFlag := initFlags()
+	var rawUrl string
+
+	flag.Parse()
+
+	switch len(os.Args) {
+	case 2:
+		rawUrl = os.Args[1]
+	case 3:
+		rawUrl = os.Args[2]
+	default:
 		fmt.Println("Usage: ./bin/gocurl <URL>")
 		return
 	}
 
-	u := parseURL(os.Args[1])
+	if *vFlag {
+		gc.verbose = true
+	}
 
-	client := &http.Client{}
-	req := createRequest(u)
-	sendRequest(client, req)
+	u := parseURL(rawUrl)
+
+	gc.createRequest(u)
+	gc.sendRequest()
 }
 
-func createRequest(u *url.URL) *http.Request {
+func (gc *GocurlClient) createRequest(u *url.URL) {
+	prefix := ">"
 	req, err := http.NewRequest("GET", fmt.Sprint(u), nil)
 	if err != nil {
 		log.Fatal(err)
@@ -45,16 +79,20 @@ func createRequest(u *url.URL) *http.Request {
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Connection", "close")
 
-	fmt.Fprintf(os.Stdout, "connecting to %s\r\n", u.Hostname())
-	fmt.Fprintf(os.Stdout, "Sending request %s %s %s\r\n", req.Method, u.Path, req.Proto)
-	fmt.Fprintf(os.Stdout, "Host: %s\r\n", u.Hostname())
-	fmt.Fprintf(os.Stdout, "Accept: %s\r\n\n", req.Header.Get("Accept"))
+	gc.httpRequest = req
 
-	return req
+	if gc.verbose {
+		fmt.Fprintf(os.Stdout, "%s connecting to %s\r\n", prefix, u.Hostname())
+		fmt.Fprintf(os.Stdout, "%s Sending request %s %s %s\r\n", prefix, req.Method, u.Path, req.Proto)
+		fmt.Fprintf(os.Stdout, "%s Host: %s\r\n", prefix, u.Hostname())
+		fmt.Fprintf(os.Stdout, "%s Accept: %s\r\n", prefix, req.Header.Get("Accept"))
+		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
+	}
 }
 
-func sendRequest(client *http.Client, req *http.Request) {
-	res, err := client.Do(req)
+func (gc *GocurlClient) sendRequest() {
+	prefix := "<"
+	res, err := gc.httpClient.Do(gc.httpRequest)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -65,14 +103,17 @@ func sendRequest(client *http.Client, req *http.Request) {
 		conn = "close"
 	}
 
-	fmt.Fprintf(os.Stdout, "%s %s\n", res.Proto, res.Status)
-	fmt.Fprintf(os.Stdout, "Date: %s\n", res.Header.Get("Date"))
-	fmt.Fprintf(os.Stdout, "Content-Type: %s\n", res.Header.Get("Content-Type"))
-	fmt.Fprintf(os.Stdout, "Content-Length: %s\n", res.Header.Get("Content-Length"))
-	fmt.Fprintf(os.Stdout, "Connection: %s\n", conn)
-	fmt.Fprintf(os.Stdout, "Server: %s\n", res.Header.Get("Server"))
-	fmt.Fprintf(os.Stdout, "Access-Control-Allow-Origin: %s\n", res.Header.Get("Access-Control-Allow-Origin"))
-	fmt.Fprintf(os.Stdout, "Access-Control-Allow-Credentials: %s\n\n", res.Header.Get("Access-Control-Allow-Credentials"))
+	if gc.verbose {
+		fmt.Fprintf(os.Stdout, "%s %s %s\n", prefix, res.Proto, res.Status)
+		fmt.Fprintf(os.Stdout, "%s Date: %s\n", prefix, res.Header.Get("Date"))
+		fmt.Fprintf(os.Stdout, "%s Content-Type: %s\n", prefix, res.Header.Get("Content-Type"))
+		fmt.Fprintf(os.Stdout, "%s Content-Length: %s\n", prefix, res.Header.Get("Content-Length"))
+		fmt.Fprintf(os.Stdout, "%s Connection: %s\n", prefix, conn)
+		fmt.Fprintf(os.Stdout, "%s Server: %s\n", prefix, res.Header.Get("Server"))
+		fmt.Fprintf(os.Stdout, "%s Access-Control-Allow-Origin: %s\n", prefix, res.Header.Get("Access-Control-Allow-Origin"))
+		fmt.Fprintf(os.Stdout, "%s Access-Control-Allow-Credentials: %s\n", prefix, res.Header.Get("Access-Control-Allow-Credentials"))
+		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
+	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
