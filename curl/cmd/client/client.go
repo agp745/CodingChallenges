@@ -7,7 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
+)
+
+const (
+	BOLD  = "\033[1m"
+	RESET = "\033[0m"
 )
 
 type Client struct {
@@ -19,19 +23,18 @@ type Client struct {
 	RequestHeaders map[string]string
 	Verbose        bool
 	HeadRequest    bool
+	KeepAlive      bool
 }
 
-func NewClient() *Client {
+func NewClient(v bool, I bool, K bool) *Client {
 	client := &http.Client{}
 	return &Client{
-		HttpClient: client,
+		HttpClient:  client,
+		Verbose:     v,
+		HeadRequest: I,
+		KeepAlive:   K,
 	}
 }
-
-const (
-	BOLD  = "\033[1m"
-	RESET = "\033[0m"
-)
 
 func (gc *Client) headRequest() {
 	res, err := gc.HttpClient.Head(fmt.Sprint(gc.URL))
@@ -62,7 +65,11 @@ func (gc *Client) CreateRequest() {
 
 	req.Header.Set("Host", u.Hostname())
 	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Connection", "close")
+	if gc.KeepAlive {
+		req.Header.Set("Connection", "keep-alive")
+	} else {
+		req.Header.Set("Connection", "close")
+	}
 	for k, v := range gc.RequestHeaders {
 		req.Header.Set(k, v)
 	}
@@ -70,11 +77,11 @@ func (gc *Client) CreateRequest() {
 	gc.HttpRequest = req
 
 	if gc.Verbose {
-		fmt.Fprintf(os.Stdout, "%s connecting to %s\r\n", prefix, u.Hostname())
-		fmt.Fprintf(os.Stdout, "%s Sending request %s %s %s\r\n", prefix, req.Method, u.Path, req.Proto)
-		fmt.Fprintf(os.Stdout, "%s Host: %s\r\n", prefix, u.Hostname())
-		fmt.Fprintf(os.Stdout, "%s Accept: %s\r\n", prefix, req.Header.Get("Accept"))
-		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
+		fmt.Println(prefix, req.Method, req.URL.Path, req.Proto)
+		for k, v := range req.Header {
+			fmt.Printf("%s %s: %s \r\n", prefix, k, v[0])
+		}
+		fmt.Println(prefix)
 	}
 
 	gc.SendRequest()
@@ -89,21 +96,12 @@ func (gc *Client) SendRequest() {
 	}
 	defer res.Body.Close()
 
-	conn := res.Header.Get("Connection")
-	if len(conn) == 0 {
-		conn = "close"
-	}
-
 	if gc.Verbose {
-		fmt.Fprintf(os.Stdout, "%s %s %s\n", prefix, res.Proto, res.Status)
-		fmt.Fprintf(os.Stdout, "%s Date: %s\n", prefix, res.Header.Get("Date"))
-		fmt.Fprintf(os.Stdout, "%s Content-Type: %s\n", prefix, res.Header.Get("Content-Type"))
-		fmt.Fprintf(os.Stdout, "%s Content-Length: %s\n", prefix, res.Header.Get("Content-Length"))
-		fmt.Fprintf(os.Stdout, "%s Connection: %s\n", prefix, conn)
-		fmt.Fprintf(os.Stdout, "%s Server: %s\n", prefix, res.Header.Get("Server"))
-		fmt.Fprintf(os.Stdout, "%s Access-Control-Allow-Origin: %s\n", prefix, res.Header.Get("Access-Control-Allow-Origin"))
-		fmt.Fprintf(os.Stdout, "%s Access-Control-Allow-Credentials: %s\n", prefix, res.Header.Get("Access-Control-Allow-Credentials"))
-		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
+		fmt.Println(prefix, res.Proto, res.Status)
+		for k, v := range res.Header {
+			fmt.Printf("%s %s: %s\r\n", prefix, k, v[0])
+		}
+		fmt.Println(prefix)
 	}
 
 	body, err := io.ReadAll(res.Body)
