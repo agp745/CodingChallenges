@@ -17,7 +17,7 @@ const (
 	BOLD  = "\033[1m"
 )
 
-func initFlags() (*bool, *string, *string) {
+func initFlags() (*bool, *string, *string, *string) {
 	// VERBOSE
 	v := flag.Bool("v", false, "Return request and response headers to stdout")
 	// METHOD
@@ -25,27 +25,14 @@ func initFlags() (*bool, *string, *string) {
 	// BODY
 	d := flag.String("d", "", "Set request body")
 	// // HEADERS
-	// H := flag.String("H", "", "Set request headers")
-	return v, X, d
+	H := flag.String("H", "", "Set request headers")
+	return v, X, d, H
 }
 
 func checkMethod(m string) bool {
 	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
 	return slices.Contains(methods, m)
 }
-
-// func parseURL(s string) *url.URL {
-// 	u, err := url.Parse(s)
-// 	if err != nil {
-// 		return nil
-// 	}
-
-// 	if len(u.Port()) == 0 {
-// 		u.Host = u.Host + ":80"
-// 	}
-
-// 	return u
-// }
 
 func getUrl() *url.URL {
 	if len(os.Args) == 1 {
@@ -55,7 +42,6 @@ func getUrl() *url.URL {
 
 	for _, arg := range os.Args {
 		u, err := url.ParseRequestURI(arg)
-
 		if err != nil {
 			continue
 		}
@@ -63,7 +49,6 @@ func getUrl() *url.URL {
 		if len(u.Port()) == 0 {
 			u.Host = u.Host + ":80"
 		}
-
 		return u
 	}
 
@@ -71,10 +56,22 @@ func getUrl() *url.URL {
 }
 
 func main() {
-	vFlag, XFlag, dFlag := initFlags()
-	flag.Parse()
+	vFlag, XFlag, dFlag, HFlag := initFlags()
 	gc := client.NewClient()
 	gc.URL = getUrl()
+
+	flag.Parse()
+	// Parse flags after first argument
+	if len(flag.Args()) > 1 {
+		for i, arg := range flag.Args() {
+			if arg == "-d" || arg == "--d" {
+				dFlag = &flag.Args()[i+1]
+			}
+			if arg == "-H" || arg == "--H" {
+				HFlag = &flag.Args()[i+1]
+			}
+		}
+	}
 
 	if *vFlag {
 		gc.Verbose = true
@@ -86,9 +83,12 @@ func main() {
 		return
 	}
 	gc.RequestMethod = method
-
 	gc.RequestBody = dFlag
-	fmt.Println("D FLAG", *dFlag)
+
+	fmt.Println("DFlag:", *dFlag)
+	fmt.Println("HFlag:", *HFlag)
+	fmt.Println("XFlag:", *XFlag)
+	// fmt.Println(args)
 
 	gc.CreateRequest()
 	gc.SendRequest()
