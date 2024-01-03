@@ -3,21 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"slices"
 	"strings"
-)
 
-type GocurlClient struct {
-	httpClient    *http.Client
-	httpRequest   *http.Request
-	requestMethod string
-	verbose       bool
-}
+	"github.com/agp745/CodingChallenges/curl/cmd/client"
+)
 
 const (
 	RED   = "\033[31m"
@@ -25,18 +17,36 @@ const (
 	BOLD  = "\033[1m"
 )
 
-func initGocurlClient() *GocurlClient {
-	client := &http.Client{}
-	return &GocurlClient{
-		httpClient: client,
-	}
+func initFlags() (*bool, *string, *string) {
+	// VERBOSE
+	v := flag.Bool("v", false, "Return request and response headers to stdout")
+	// METHOD
+	X := flag.String("X", "GET", "Set the request method. Usage: ./bin/gocurl -X GET <URL>")
+	// BODY
+	d := flag.String("d", "", "Set request body")
+	// // HEADERS
+	// H := flag.String("H", "", "Set request headers")
+	return v, X, d
 }
 
-func initFlags() (*bool, *string) {
-	v := flag.Bool("v", false, "Return request and response headers to stdout")
-	X := flag.String("X", "GET", "Set the request method. Default: GET")
+func checkMethod(m string) bool {
+	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
+	return slices.Contains(methods, m)
+}
 
-	return v, X
+func getUrl() *url.URL {
+	var rawUrl string
+
+	if len(os.Args) == 1 {
+		fmt.Println("Usage: ./bin/gocurl [flags] <URL>")
+		os.Exit(0)
+	} else if i := slices.Index(os.Args, "\\"); i != -1 {
+		rawUrl = os.Args[i-1]
+	} else {
+		rawUrl = os.Args[len(os.Args)-1]
+	}
+
+	return parseURL(rawUrl)
 }
 
 func parseURL(rawURL string) *url.URL {
@@ -52,91 +62,27 @@ func parseURL(rawURL string) *url.URL {
 	return u
 }
 
-func checkMethod(m string) bool {
-	methods := []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
-	return slices.Contains(methods, m)
-}
-
 func main() {
-	gc := initGocurlClient()
-	vFlag, XFlag := initFlags()
-	var rawUrl string
-
+	vFlag, XFlag, dFlag := initFlags()
 	flag.Parse()
-
-	if len(os.Args) == 1 {
-		fmt.Println("Usage: ./bin/gocurl [flags] <URL>")
-		return
-	}
-	rawUrl = os.Args[len(os.Args)-1]
+	gc := client.NewClient()
+	gc.URL = getUrl()
 
 	if *vFlag {
-		gc.verbose = true
+		gc.Verbose = true
 	}
+
 	method := strings.ToUpper(strings.TrimSpace(*XFlag))
 	if ok := checkMethod(method); !ok {
 		fmt.Printf("%sError:%s %s%s%s is NOT a valid method\r\n", RED, RESET, BOLD, method, RESET)
 		return
 	}
-	gc.requestMethod = method
+	gc.RequestMethod = method
 
-	u := parseURL(rawUrl)
+	gc.RequestBody = dFlag
+	// gc.requestHeaders = HFlag
+	fmt.Println("D FLAG", *dFlag)
 
-	gc.createRequest(u)
-	gc.sendRequest()
-}
-
-func (gc *GocurlClient) createRequest(u *url.URL) {
-	prefix := ">"
-	req, err := http.NewRequest("GET", fmt.Sprint(u), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	req.Header.Set("Host", u.Hostname())
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Connection", "close")
-	req.Method = gc.requestMethod
-
-	gc.httpRequest = req
-
-	if gc.verbose {
-		fmt.Fprintf(os.Stdout, "%s connecting to %s\r\n", prefix, u.Hostname())
-		fmt.Fprintf(os.Stdout, "%s Sending request %s %s %s\r\n", prefix, req.Method, u.Path, req.Proto)
-		fmt.Fprintf(os.Stdout, "%s Host: %s\r\n", prefix, u.Hostname())
-		fmt.Fprintf(os.Stdout, "%s Accept: %s\r\n", prefix, req.Header.Get("Accept"))
-		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
-	}
-}
-
-func (gc *GocurlClient) sendRequest() {
-	prefix := "<"
-	res, err := gc.httpClient.Do(gc.httpRequest)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer res.Body.Close()
-
-	conn := res.Header.Get("Connection")
-	if len(conn) == 0 {
-		conn = "close"
-	}
-
-	if gc.verbose {
-		fmt.Fprintf(os.Stdout, "%s %s %s\n", prefix, res.Proto, res.Status)
-		fmt.Fprintf(os.Stdout, "%s Date: %s\n", prefix, res.Header.Get("Date"))
-		fmt.Fprintf(os.Stdout, "%s Content-Type: %s\n", prefix, res.Header.Get("Content-Type"))
-		fmt.Fprintf(os.Stdout, "%s Content-Length: %s\n", prefix, res.Header.Get("Content-Length"))
-		fmt.Fprintf(os.Stdout, "%s Connection: %s\n", prefix, conn)
-		fmt.Fprintf(os.Stdout, "%s Server: %s\n", prefix, res.Header.Get("Server"))
-		fmt.Fprintf(os.Stdout, "%s Access-Control-Allow-Origin: %s\n", prefix, res.Header.Get("Access-Control-Allow-Origin"))
-		fmt.Fprintf(os.Stdout, "%s Access-Control-Allow-Credentials: %s\n", prefix, res.Header.Get("Access-Control-Allow-Credentials"))
-		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(string(body))
+	gc.CreateRequest()
+	gc.SendRequest()
 }
