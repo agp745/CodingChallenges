@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -10,13 +11,13 @@ import (
 )
 
 type Client struct {
-	HttpClient    *http.Client
-	HttpRequest   *http.Request
-	URL           *url.URL
-	RequestMethod string
-	RequestBody   *string
-	// requestHeaders *string
-	Verbose bool
+	HttpClient     *http.Client
+	HttpRequest    *http.Request
+	URL            *url.URL
+	RequestMethod  string
+	RequestBody    *string
+	RequestHeaders map[string]string
+	Verbose        bool
 }
 
 func NewClient() *Client {
@@ -31,7 +32,7 @@ func (gc *Client) CreateRequest() {
 	prefix := ">"
 	u := gc.URL
 
-	req, err := http.NewRequest("GET", fmt.Sprint(u), nil)
+	req, err := http.NewRequest(gc.RequestMethod, fmt.Sprint(u), bytes.NewBuffer([]byte(*gc.RequestBody)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,11 +40,13 @@ func (gc *Client) CreateRequest() {
 	req.Header.Set("Host", u.Hostname())
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Connection", "close")
-	req.Method = gc.RequestMethod
-
-	if len(*gc.RequestBody) > 0 {
-		req.Body.Read([]byte(*gc.RequestBody))
+	for k, v := range gc.RequestHeaders {
+		req.Header.Set(k, v)
 	}
+
+	req.Method = gc.RequestMethod
+	// fmt.Println()
+	// req.Body.Read([]byte(*gc.RequestBody))
 
 	gc.HttpRequest = req
 
@@ -54,10 +57,17 @@ func (gc *Client) CreateRequest() {
 		fmt.Fprintf(os.Stdout, "%s Accept: %s\r\n", prefix, req.Header.Get("Accept"))
 		fmt.Fprintf(os.Stdout, "%s\r\n", prefix)
 	}
+
+	gc.SendRequest()
 }
 
 func (gc *Client) SendRequest() {
 	prefix := "<"
+
+	// if gc.RequestMethod == "Post" {
+	// 	gc.HttpClient.Post(fmt.Sprint(gc.URL), gc.RequestHeaders["Content-Type"], )
+	// }
+
 	res, err := gc.HttpClient.Do(gc.HttpRequest)
 	if err != nil {
 		log.Fatal(err)

@@ -84,12 +84,21 @@ func main() {
 	}
 	gc.RequestMethod = method
 	gc.RequestBody = dFlag
-
-	fmt.Println("DFlag:", *dFlag)
-	fmt.Println("HFlag:", *HFlag)
-	fmt.Println("XFlag:", *XFlag)
-	// fmt.Println(args)
+	if len(*HFlag) > 0 {
+		gc.RequestHeaders = parseReqHeaders(*HFlag)
+	}
 
 	gc.CreateRequest()
-	gc.SendRequest()
+}
+
+func parseReqHeaders(h string) map[string]string {
+	headers := make(map[string]string)
+
+	arr := strings.Split(h, ": ")
+
+	for i := 0; i < len(arr); i += 2 {
+		headers[arr[i]] = arr[i+1]
+	}
+
+	return headers
 }
