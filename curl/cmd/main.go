@@ -34,32 +34,40 @@ func checkMethod(m string) bool {
 	return slices.Contains(methods, m)
 }
 
-func getUrl() *url.URL {
-	var rawUrl string
+// func parseURL(s string) *url.URL {
+// 	u, err := url.Parse(s)
+// 	if err != nil {
+// 		return nil
+// 	}
 
+// 	if len(u.Port()) == 0 {
+// 		u.Host = u.Host + ":80"
+// 	}
+
+// 	return u
+// }
+
+func getUrl() *url.URL {
 	if len(os.Args) == 1 {
 		fmt.Println("Usage: ./bin/gocurl [flags] <URL>")
 		os.Exit(0)
-	} else if i := slices.Index(os.Args, "\\"); i != -1 {
-		rawUrl = os.Args[i-1]
-	} else {
-		rawUrl = os.Args[len(os.Args)-1]
 	}
 
-	return parseURL(rawUrl)
-}
+	for _, arg := range os.Args {
+		u, err := url.ParseRequestURI(arg)
 
-func parseURL(rawURL string) *url.URL {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		panic(err)
+		if err != nil {
+			continue
+		}
+
+		if len(u.Port()) == 0 {
+			u.Host = u.Host + ":80"
+		}
+
+		return u
 	}
 
-	if len(u.Port()) == 0 {
-		u.Host = u.Host + ":80"
-	}
-
-	return u
+	return nil
 }
 
 func main() {
@@ -80,7 +88,6 @@ func main() {
 	gc.RequestMethod = method
 
 	gc.RequestBody = dFlag
-	// gc.requestHeaders = HFlag
 	fmt.Println("D FLAG", *dFlag)
 
 	gc.CreateRequest()
