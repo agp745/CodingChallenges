@@ -17,7 +17,7 @@ const (
 	BOLD  = "\033[1m"
 )
 
-func initFlags() (*bool, *string, *string, *string, *bool) {
+func initFlags() (*bool, *string, *string, *string, *bool, *bool) {
 	// VERBOSE
 	v := flag.Bool("v", false, "Return request and response headers to stdout")
 	// METHOD
@@ -28,7 +28,9 @@ func initFlags() (*bool, *string, *string, *string, *bool) {
 	H := flag.String("H", "", "Set request headers")
 	// HEAD
 	I := flag.Bool("I", false, "Get Response Headers without requesting the body")
-	return v, X, d, H, I
+	// KEEP-ALIVE
+	K := flag.Bool("K", false, "sets Connection header to Keep-Alive")
+	return v, X, d, H, I, K
 }
 
 func checkMethod(m string) bool {
@@ -58,10 +60,7 @@ func getUrl() *url.URL {
 }
 
 func main() {
-	vFlag, XFlag, dFlag, HFlag, IFlag := initFlags()
-	gc := client.NewClient()
-	gc.URL = getUrl()
-
+	vFlag, XFlag, dFlag, HFlag, IFlag, KFlag := initFlags()
 	flag.Parse()
 	// Parse flags after first argument
 	if len(flag.Args()) > 1 {
@@ -75,15 +74,8 @@ func main() {
 		}
 	}
 
-	// fmt.Println(*IFlag)
-
-	if *vFlag {
-		gc.Verbose = true
-	}
-
-	if *IFlag {
-		gc.HeadRequest = true
-	}
+	gc := client.NewClient(*vFlag, *IFlag, *KFlag)
+	gc.URL = getUrl()
 
 	method := strings.ToUpper(strings.TrimSpace(*XFlag))
 	if ok := checkMethod(method); !ok {

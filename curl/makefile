@@ -2,10 +2,10 @@ build:
 	go build -o bin/gocurl cmd/main.go
 
 testGet:
-	./bin/gocurl http://httpbin.org/get
+	./bin/gocurl -K -v http://httpbin.org/get
 
 testDelete:
-	./bin/gocurl -X delete -v http://httpbin.org/delete
+	./bin/gocurl -K -X delete -v http://httpbin.org/delete
 
 testPost:
 	./bin/gocurl -X POST http://httpbin.org/post \
@@ -39,3 +39,5 @@ put: build testPut
 patch: build testPatch
 
 head: build testHead
+
+all: build testGet testDelete testPost testPut testPatch testHead
