@@ -18,6 +18,7 @@ type Client struct {
 	RequestBody    *string
 	RequestHeaders map[string]string
 	Verbose        bool
+	HeadRequest    bool
 }
 
 func NewClient() *Client {
@@ -27,10 +28,32 @@ func NewClient() *Client {
 	}
 }
 
-// func (gc *Client) CreateRequest(u *url.URL) {
+const (
+	BOLD  = "\033[1m"
+	RESET = "\033[0m"
+)
+
+func (gc *Client) headRequest() {
+	res, err := gc.HttpClient.Head(fmt.Sprint(gc.URL))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	fmt.Println(res.Proto, res.Status)
+	for k, v := range res.Header {
+		fmt.Printf("%s%s:%s %s\r\n", BOLD, k, RESET, v)
+	}
+}
+
 func (gc *Client) CreateRequest() {
 	prefix := ">"
 	u := gc.URL
+
+	if gc.HeadRequest {
+		gc.headRequest()
+		return
+	}
 
 	req, err := http.NewRequest(gc.RequestMethod, fmt.Sprint(u), bytes.NewBuffer([]byte(*gc.RequestBody)))
 	if err != nil {
@@ -43,10 +66,6 @@ func (gc *Client) CreateRequest() {
 	for k, v := range gc.RequestHeaders {
 		req.Header.Set(k, v)
 	}
-
-	req.Method = gc.RequestMethod
-	// fmt.Println()
-	// req.Body.Read([]byte(*gc.RequestBody))
 
 	gc.HttpRequest = req
 
@@ -63,10 +82,6 @@ func (gc *Client) CreateRequest() {
 
 func (gc *Client) SendRequest() {
 	prefix := "<"
-
-	// if gc.RequestMethod == "Post" {
-	// 	gc.HttpClient.Post(fmt.Sprint(gc.URL), gc.RequestHeaders["Content-Type"], )
-	// }
 
 	res, err := gc.HttpClient.Do(gc.HttpRequest)
 	if err != nil {

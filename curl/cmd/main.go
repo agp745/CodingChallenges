@@ -17,16 +17,18 @@ const (
 	BOLD  = "\033[1m"
 )
 
-func initFlags() (*bool, *string, *string, *string) {
+func initFlags() (*bool, *string, *string, *string, *bool) {
 	// VERBOSE
 	v := flag.Bool("v", false, "Return request and response headers to stdout")
 	// METHOD
 	X := flag.String("X", "GET", "Set the request method. Usage: ./bin/gocurl -X GET <URL>")
 	// BODY
 	d := flag.String("d", "", "Set request body")
-	// // HEADERS
+	// HEADERS
 	H := flag.String("H", "", "Set request headers")
-	return v, X, d, H
+	// HEAD
+	I := flag.Bool("I", false, "Get Response Headers without requesting the body")
+	return v, X, d, H, I
 }
 
 func checkMethod(m string) bool {
@@ -56,7 +58,7 @@ func getUrl() *url.URL {
 }
 
 func main() {
-	vFlag, XFlag, dFlag, HFlag := initFlags()
+	vFlag, XFlag, dFlag, HFlag, IFlag := initFlags()
 	gc := client.NewClient()
 	gc.URL = getUrl()
 
@@ -73,8 +75,14 @@ func main() {
 		}
 	}
 
+	// fmt.Println(*IFlag)
+
 	if *vFlag {
 		gc.Verbose = true
+	}
+
+	if *IFlag {
+		gc.HeadRequest = true
 	}
 
 	method := strings.ToUpper(strings.TrimSpace(*XFlag))
