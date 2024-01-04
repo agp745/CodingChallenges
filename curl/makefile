@@ -1,48 +1,26 @@
 build:
 	go build -o bin/gocurl cmd/main.go
 
-testGet:
+get:
 	./bin/gocurl -K -v http://httpbin.org/get
 
-testDelete:
+delete:
 	./bin/gocurl -K -X delete -v http://httpbin.org/delete
 
-testPost:
+post:
 	./bin/gocurl -X POST http://httpbin.org/post \
 	-d '{"key": "value"}' \
 	-H "Content-Type: application/json"
 
-testPut:
+put:
 	./bin/gocurl -X PUT http://httpbin.org/put \
 	-d '{"key2": "value2"}' \
 	-H "Content-Type: application/json"
 
-testPatch:
+patch:
 	./bin/gocurl -X PATCH http://httpbin.org/patch \
 	-d '{"keyUpdate": "NEW VALUE"}' \
 	-H "Content-Type: application/json"
 
-testHead:
+head:
 	./bin/gocurl -I http://httpbin.org/get
-
-testHTTPS:
-	./bin/gocurl -v https://example.com
-
-clean:
-	rm -rf bin
-
-get: build testGet
-
-delete: build testDelete
-
-post: build testPost
-
-put: build testPut
-
-patch: build testPatch
-
-head: build testHead
-
-https: build testHTTPS
-
-all: build testGet testDelete testPost testPut testPatch testHead
