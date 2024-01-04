@@ -51,7 +51,12 @@ func getUrl() *url.URL {
 		}
 
 		if len(u.Port()) == 0 {
-			u.Host = u.Host + ":80"
+			switch u.Scheme {
+			case "http":
+				u.Host = u.Host + ":80"
+			case "https":
+				u.Host = u.Host + ":443"
+			}
 		}
 		return u
 	}

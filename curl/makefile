@@ -25,6 +25,9 @@ testPatch:
 testHead:
 	./bin/gocurl -I http://httpbin.org/get
 
+testHTTPS:
+	./bin/gocurl -v https://example.com
+
 clean:
 	rm -rf bin
 
@@ -39,5 +42,7 @@ put: build testPut
 patch: build testPatch
 
 head: build testHead
+
+https: build testHTTPS
 
 all: build testGet testDelete testPost testPut testPatch testHead
