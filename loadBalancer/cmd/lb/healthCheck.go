@@ -8,7 +8,6 @@ import (
 )
 
 func (lb *LoadBalancer) BadServer(port string) {
-
 	if !slices.Contains(lb.badServers, port) {
 		lb.badServers = append(lb.badServers, port)
 	}
@@ -37,7 +36,6 @@ func (lb *LoadBalancer) HealthyServer(port string) {
 }
 
 func (lb *LoadBalancer) HealthCheck() {
-
 	red := "\033[31m"
 	bold := "\033[1m"
 	reset := "\033[0m"
