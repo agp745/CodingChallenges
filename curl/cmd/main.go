@@ -45,7 +45,12 @@ func getUrl() *url.URL {
 	}
 
 	for _, arg := range os.Args {
-		u, err := url.ParseRequestURI(arg)
+		rawUrl := arg
+		if !strings.Contains(rawUrl, "://") {
+			rawUrl = fmt.Sprintf("https://%s", arg)
+		}
+		u, err := url.ParseRequestURI(rawUrl)
+		fmt.Println("YER")
 		if err != nil {
 			continue
 		}
